@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>travel · Sam Barbeau</title>
+  <link rel="icon" type="image/png" href="/img/page_logo.png" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="wrap travel">
+    <header class="site">
+      <a href="/" class="brand">
+        <img src="/img/page_logo.png" alt="" />
+        <span>Sam Barbeau</span>
+      </a>
+      <nav class="site">
+        <a href="/">about</a>
+        <a href="/projects.html">projects</a>
+        <a href="/travel.html" class="active">travel</a>
+      </nav>
+    </header>
+
+    <main>
+      <h1>travel</h1>
+      <p>places i've been. drag to spin, click a marker (or a name below) to fly there.</p>
+      <div id="globe"></div>
+      <ul class="locations" id="locations"></ul>
+    </main>
+
+    <footer class="site">
+      <img src="/img/page_logo.png" alt="" />
+      <span>&copy; sam barbeau</span>
+    </footer>
+  </div>
+
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <script src="https://unpkg.com/globe.gl@2.33.0/dist/globe.gl.min.js"></script>
+  <script src="/travel.js"></script>
+</body>
+</html>
