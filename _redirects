@@ -2,11 +2,11 @@
 # Status 200 = rewrite (URL bar stays sambarbeau.com/<path>).
 # Each line: <from> <to> <status>
 
-/qr/*         https://qr-code.pages.dev/:splat            200
-/qr           https://qr-code.pages.dev/                  200
+/qr/*         https://qr-code-ex8.pages.dev/:splat            200
+/qr           https://qr-code-ex8.pages.dev/                  200
 
 /constants/*  https://constants-explorer.pages.dev/:splat 200
 /constants    https://constants-explorer.pages.dev/       200
 
-/color/*      https://color-game.pages.dev/:splat         200
-/color        https://color-game.pages.dev/               200
+/color/*      https://color-game-web.pages.dev/:splat         200
+/color        https://color-game-web.pages.dev/               200
