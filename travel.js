@@ -7,22 +7,31 @@ const LOCATIONS = [
   { city: "Negril",            country: "Jamaica",      lat: 18.2781,  lng: -78.3484 },
   
   // USA (West to East Coast)
+  { city: "San Diego",         country: "USA",          lat: 32.7157,  lng: -117.1611},
+  { city: "Los Angeles",       country: "USA",          lat: 34.0522,  lng: -118.2437},
+  { city: "Las Vegas",         country: "USA",          lat: 36.1716,  lng: -115.1391},
   { city: "Santa Fe",          country: "USA",          lat: 35.6870,  lng: -105.9378},
   { city: "Denver",            country: "USA",          lat: 39.7392,  lng: -104.9903},
   { city: "Oklahoma City",     country: "USA",          lat: 35.4676,  lng: -97.5164 },
   { city: "Tulsa",             country: "USA",          lat: 36.1540,  lng: -95.9928 },
   { city: "Waco",              country: "USA",          lat: 31.5493,  lng: -97.1467 },
+  { city: "Boyne City",        country: "USA",          lat: 45.2127,  lng: -85.0117 },
   { city: "Minocqua",          country: "USA",          lat: 45.8719,  lng: -89.7093 },
   { city: "Milwaukee",         country: "USA",          lat: 43.0389,  lng: -87.9065 },
   { city: "Chicago",           country: "USA",          lat: 41.8781,  lng: -87.6298 },
   { city: "Champaign",         country: "USA",          lat: 40.1164,  lng: -88.2434 },
+  { city: "Washington D.C.",   country: "USA",          lat: 38.9072,  lng: -77.0369 },
   { city: "Blacksburg",        country: "USA",          lat: 37.2296,  lng: -80.4139 },
   { city: "Garden City Beach", country: "USA",          lat: 33.5902,  lng: -78.9959 },
   { city: "New York",          country: "USA",          lat: 40.7128,  lng: -74.0060 },
   { city: "Foxborough",        country: "USA",          lat: 42.0654,  lng: -71.2478 },
 
   // --- EUROPE ---
+  { city: "Outer Hebrides",    country: "UK",           lat: 57.7600,  lng: -7.0200  },
+  { city: "Glasgow",           country: "UK",           lat: 55.8642,  lng: -4.2518  },
+  { city: "Edinburgh",         country: "UK",           lat: 55.9533,  lng: -3.1883  },
   { city: "London",            country: "UK",           lat: 51.5074,  lng: -0.1278  },
+  { city: "Amsterdam",         country: "Netherlands",  lat: 52.3676,  lng: 4.9041   },
   { city: "Munich",            country: "Germany",      lat: 48.1351,  lng: 11.5820  },
   { city: "Paris",             country: "France",       lat: 48.8566,  lng: 2.3522   },
   { city: "Nice",              country: "France",       lat: 43.7102,  lng: 7.2620   },
@@ -129,23 +138,36 @@ window.addEventListener("resize", resize);
 // Initial camera
 globe.pointOfView({ lat: 30, lng: -40, altitude: 2.4 }, 0);
 
-// Auto-rotate gently until user interacts
+// Controls — gentle auto-rotate until the user interacts
 const controls = globe.controls();
 controls.autoRotate = true;
 controls.autoRotateSpeed = 0.4;
 controls.enableZoom = true;
-let interacted = false;
 ["mousedown", "touchstart", "wheel"].forEach(evt =>
-  el.addEventListener(evt, () => {
-    if (interacted) return;
-    interacted = true;
-    controls.autoRotate = false;
-  }, { passive: true })
+  el.addEventListener(evt, () => { controls.autoRotate = false; }, { passive: true, once: true })
 );
+
+// Pause the render loop when the page/tab isn't visible or scrolled out of view.
+// globe.gl exposes its internal animation via _animationFrameRequestId on newer versions,
+// but the portable approach is to toggle three.js's renderer pause via _destructor-safe pause.
+// We use the documented pauseAnimation / resumeAnimation methods.
+function pause() { if (globe.pauseAnimation) globe.pauseAnimation(); }
+function resume() { if (globe.resumeAnimation) globe.resumeAnimation(); }
+
+document.addEventListener("visibilitychange", () => {
+  document.hidden ? pause() : resume();
+});
+
+// Pause when scrolled offscreen, resume when visible.
+if ("IntersectionObserver" in window) {
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => e.isIntersecting ? resume() : pause());
+  }, { threshold: 0 });
+  io.observe(el);
+}
 
 function flyTo(d) {
   controls.autoRotate = false;
-  interacted = true;
   globe.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.6 }, 1200);
   document.querySelectorAll("#locations li").forEach(li => {
     li.classList.toggle("active", li.dataset.city === d.city);
