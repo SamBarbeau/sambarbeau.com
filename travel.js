@@ -1,4 +1,3 @@
-// edit this list — that's it.
 const LOCATIONS = [
   // --- NORTH AMERICA ---
   { city: "Montreal",          country: "Canada",       lat: 45.5017,  lng: -73.5673 },
@@ -7,6 +6,7 @@ const LOCATIONS = [
   { city: "Negril",            country: "Jamaica",      lat: 18.2781,  lng: -78.3484 },
   
   // USA (West to East Coast)
+  // to add: sedona, yellowstone,
   { city: "San Diego",         country: "USA",          lat: 32.7157,  lng: -117.1611},
   { city: "Los Angeles",       country: "USA",          lat: 34.0522,  lng: -118.2437},
   { city: "Las Vegas",         country: "USA",          lat: 36.1716,  lng: -115.1391},
@@ -44,9 +44,9 @@ const LOCATIONS = [
   { city: "Tenerife",          country: "Spain",        lat: 28.2916,  lng: -16.6291 },
 
   // --- ASIA ---
-  { city: "Kyoto",             country: "Japan",        lat: 35.0116,  lng: 135.7681 },
-  { city: "Osaka",             country: "Japan",        lat: 34.6937,  lng: 135.5023 },
-  { city: "Tokyo",             country: "Japan",        lat: 35.6762,  lng: 139.6503 },
+  // { city: "Kyoto",             country: "Japan",        lat: 35.0116,  lng: 135.7681 },
+  // { city: "Osaka",             country: "Japan",        lat: 34.6937,  lng: 135.5023 },
+  // { city: "Tokyo",             country: "Japan",        lat: 35.6762,  lng: 139.6503 },
 ];
 
 
