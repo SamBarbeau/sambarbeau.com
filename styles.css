@@ -137,3 +137,8 @@ ul.projects .desc { color: var(--muted); font-size: 0.9rem; flex: 1; text-align:
   nav.site a { margin-left: 0; margin-right: 1rem; }
   #globe { height: 380px; }
 }
+
+@media (max-width: 540px) {
+  ul.projects li { flex-direction: column; gap: .15rem; }
+  ul.projects .desc { text-align: left; }
+}

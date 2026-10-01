@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Photo scrubber · Sam Barbeau</title>
+    <meta
+      name="description"
+      content="Blur, pixelate, or cover parts of a photo. A simple, private photo scrubber that works entirely in your browser."
+    />
+    <link rel="icon" href="/img/favicon-32.png" />
+    <link rel="stylesheet" href="style.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="site">
+        <a href="/" aria-label="Sam Barbeau — home"
+          ><img src="/img/page_logo.png" width="32" height="32" alt=""
+        /></a>
+        <nav aria-label="Site">
+          <a href="/">about</a
+          ><a href="/projects.html" aria-current="page">projects</a
+          ><a href="/travel.html">travel</a>
+        </nav>
+      </header>
+      <main>
+        <div class="heading">
+          <div>
+            <h1>photo scrubber</h1>
+            <p class="lede">a little less detail. a little more privacy.</p>
+          </div>
+          <span class="local">● stays on your device</span>
+        </div>
+        <section id="drop-zone" class="drop-zone" aria-label="Choose a photo">
+          <div class="sample-icon" aria-hidden="true">▧</div>
+          <h2>Start with a photo</h2>
+          <p>Drop it here, paste it, or choose a file.</p>
+          <button id="choose" class="primary">Choose photo</button>
+          <p class="small">
+            JPEG, PNG, WebP, AVIF, or HEIC if your browser supports it.<br />No
+            upload. No account. No original photo stored.
+          </p>
+        </section>
+        <input
+          id="file"
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif"
+          hidden
+        />
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+        <section id="editor" hidden aria-label="Photo editor">
+          <div class="toolbar">
+            <div class="group">
+              <span class="field-label">Select with</span>
+              <div class="segmented" role="group" aria-label="Selection tool">
+                <button data-tool="brush" aria-pressed="true">Brush</button
+                ><button data-tool="box" aria-pressed="false">Box</button>
+              </div>
+            </div>
+            <label class="group" for="effect"
+              ><span>Effect</span
+              ><select id="effect">
+                <option value="pixelate">Pixelate</option>
+                <option value="blur">Blur</option>
+                <option value="solid">Solid cover</option>
+              </select></label
+            >
+            <label class="group" id="strength-group" for="strength"
+              ><span>Strength <output id="strength-value">55</output></span
+              ><input id="strength" type="range" min="1" max="100" value="55"
+            /></label>
+            <label class="group" id="size-group" for="size"
+              ><span>Brush size <output id="size-value">8%</output></span
+              ><input id="size" type="range" min="1" max="30" value="8"
+            /></label>
+            <label class="group" id="color-group" for="cover-color" hidden
+              ><span>Cover color</span
+              ><input id="cover-color" type="color" value="#082f49"
+            /></label>
+          </div>
+          <div class="workspace" id="workspace">
+            <div class="canvas-wrap" id="canvas-wrap">
+              <canvas id="photo" aria-label="Photo with applied edits"></canvas
+              ><canvas
+                id="overlay"
+                tabindex="0"
+                role="img"
+                aria-label="Draw over the photo to scrub it. Use the whole-photo button for a keyboard-accessible selection."
+              ></canvas>
+            </div>
+          </div>
+          <div class="edit-actions">
+            <div class="buttons">
+              <button id="undo" disabled>Undo</button
+              ><button id="redo" disabled>Redo</button
+              ><button id="clear" disabled>Clear edits</button
+              ><button id="whole">Whole photo</button>
+            </div>
+            <button id="compare" aria-pressed="false">Show original</button>
+          </div>
+          <p class="hint" id="hint">
+            Paint over an area. Each stroke uses the current effect and
+            strength.
+          </p>
+          <div class="export-bar">
+            <div>
+              <span id="dimensions"></span>
+              <p class="small">
+                Exported as a flat image, without the original photo’s EXIF
+                metadata.
+              </p>
+            </div>
+            <div class="buttons">
+              <button id="replace">Change photo</button
+              ><label class="sr-only" for="format">Download format</label
+              ><select id="format">
+                <option value="image/png">PNG</option>
+                <option value="image/jpeg">JPEG</option></select
+              ><button id="download" class="primary">Download photo</button>
+            </div>
+          </div>
+          <p class="small">
+            For sensitive details, use solid cover. Blur and pixelation can
+            leave information recognizable.
+          </p>
+        </section>
+      </main>
+      <footer>
+        <a href="/projects.html">← all projects</a
+        ><span>photos never leave this tab</span>
+      </footer>
+    </div>
+  </body>
+</html>
