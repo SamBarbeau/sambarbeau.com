@@ -4,7 +4,7 @@ Personal site and a few small browser tools. Plain HTML/CSS/JS, with no build st
 
 ## Hosting and URLs
 
-Small projects live under the personal domain. Sither is a separate game and keeps its own subdomain. The Projects page links to both kinds of project.
+Small projects live under the personal domain. Sither is a separate game and keeps its own subdomain. The Projects page lists the small projects; Sither is accessed directly through its subdomain.
 
 | Public URL | Source | Hosting |
 | --- | --- | --- |

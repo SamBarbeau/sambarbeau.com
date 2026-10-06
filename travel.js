@@ -45,8 +45,8 @@ const LOCATIONS = [
 
   // --- ASIA ---
   // { city: "Kyoto",             country: "Japan",        lat: 35.0116,  lng: 135.7681 },
-  // { city: "Osaka",             country: "Japan",        lat: 34.6937,  lng: 135.5023 },
-  // { city: "Tokyo",             country: "Japan",        lat: 35.6762,  lng: 139.6503 },
+  { city: "Osaka",             country: "Japan",        lat: 34.6937,  lng: 135.5023 },
+  { city: "Tokyo",             country: "Japan",        lat: 35.6762,  lng: 139.6503 },
 ];
 
 
