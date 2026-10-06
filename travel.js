@@ -6,10 +6,11 @@ const LOCATIONS = [
   { city: "Negril",            country: "Jamaica",      lat: 18.2781,  lng: -78.3484 },
   
   // USA (West to East Coast)
-  // to add: sedona, yellowstone,
+  // to add: yellowstone,
   { city: "San Diego",         country: "USA",          lat: 32.7157,  lng: -117.1611},
   { city: "Los Angeles",       country: "USA",          lat: 34.0522,  lng: -118.2437},
   { city: "Las Vegas",         country: "USA",          lat: 36.1716,  lng: -115.1391},
+  { city: "Sedona",            country: "USA",          lat: 34.8697,  lng: -111.7610},
   { city: "Santa Fe",          country: "USA",          lat: 35.6870,  lng: -105.9378},
   { city: "Denver",            country: "USA",          lat: 39.7392,  lng: -104.9903},
   { city: "Oklahoma City",     country: "USA",          lat: 35.4676,  lng: -97.5164 },
@@ -23,6 +24,7 @@ const LOCATIONS = [
   { city: "Washington D.C.",   country: "USA",          lat: 38.9072,  lng: -77.0369 },
   { city: "Blacksburg",        country: "USA",          lat: 37.2296,  lng: -80.4139 },
   { city: "Garden City Beach", country: "USA",          lat: 33.5902,  lng: -78.9959 },
+  { city: "Miami",             country: "USA",          lat: 25.7617,  lng: -80.1918 },
   { city: "New York",          country: "USA",          lat: 40.7128,  lng: -74.0060 },
   { city: "Foxborough",        country: "USA",          lat: 42.0654,  lng: -71.2478 },
 
@@ -143,6 +145,13 @@ const controls = globe.controls();
 controls.autoRotate = true;
 controls.autoRotateSpeed = 0.4;
 controls.enableZoom = true;
+// Globe.gl recalibrates zoom on every camera change. Apply our multiplier
+// afterwards so quicker wheel and pinch zoom persists at every altitude.
+function updateZoomSpeed({ altitude }) {
+  controls.zoomSpeed = (altitude + 1) * 0.1 * 1.6;
+}
+globe.onZoom(updateZoomSpeed);
+updateZoomSpeed(globe.pointOfView());
 ["mousedown", "touchstart", "wheel"].forEach(evt =>
   el.addEventListener(evt, () => { controls.autoRotate = false; }, { passive: true, once: true })
 );
