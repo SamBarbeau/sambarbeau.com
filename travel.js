@@ -63,8 +63,9 @@ const globe = Globe()(el)
   .backgroundColor("rgba(0,0,0,0)")
   .showGlobe(false)            // no filled sphere — minimalist
   .showAtmosphere(false)
-  .showGraticules(true)
+  .showGraticules(false)
   .pointsData(LOCATIONS)
+  .pointsTransitionDuration(0)
   .pointLat("lat")
   .pointLng("lng")
   .pointColor(() => ACCENT)
@@ -73,18 +74,56 @@ const globe = Globe()(el)
   .pointLabel(d => `<div style="background:${BG};color:${INK};padding:4px 8px;border:1px solid ${LINE};border-radius:3px;font-family:Georgia,serif;font-size:13px;">${d.city}, ${d.country}</div>`)
   .onPointClick(d => flyTo(d));
 
-// Load world country outlines (no fill — outline only)
+// Each outline fades continuously across the horizon as the camera moves.
+// Geography is uploaded once; the GPU handles front/rear contrast during rotation.
+function outlineLayer(paths, color, rearOpacity) {
+  const vertices = [];
+  for (const path of paths) {
+    for (let i = 1; i < path.length; i++) {
+      for (const [lng, lat] of [path[i - 1], path[i]]) {
+        const p = globe.getCoords(lat, lng, 0.005);
+        vertices.push(p.x, p.y, p.z);
+      }
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  const material = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, depthTest: false,
+    uniforms: { ink: { value: new THREE.Color(color) }, rear: { value: rearOpacity } },
+    vertexShader: `varying vec3 surface;
+      void main() {
+        surface = (modelMatrix * vec4(position, 1.0)).xyz;
+        gl_Position = projectionMatrix * viewMatrix * vec4(surface, 1.0);
+      }`,
+    fragmentShader: `uniform vec3 ink; uniform float rear; varying vec3 surface;
+      void main() {
+        float facing = dot(normalize(surface), normalize(cameraPosition - surface));
+        float opacity = mix(rear, 1.0, smoothstep(-0.03, 0.03, facing));
+        gl_FragColor = vec4(ink, opacity);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`
+  });
+  const lines = new THREE.LineSegments(geometry, material);
+  lines.raycast = () => {};
+  globe.scene().add(lines);
+}
+const graticules = [];
+for (let lat = -80; lat <= 80; lat += 10) {
+  graticules.push(Array.from({length: 361}, (_, i) => [i - 180, lat]));
+}
+for (let lng = -180; lng < 180; lng += 10) {
+  graticules.push(Array.from({length: 181}, (_, i) => [lng, i - 90]));
+}
+outlineLayer(graticules, LINE, 0.08);
 fetch("https://unpkg.com/world-atlas@2.0.2/countries-110m.json")
   .then(r => r.json())
   .then(topo => {
-    // topojson -> geojson features (using a tiny inline decoder via three-globe's expectation: it accepts geojson features)
     const features = topojsonFeatures(topo, topo.objects.countries);
-    globe
-      .polygonsData(features)
-      .polygonCapColor(() => "rgba(0,0,0,0)")
-      .polygonSideColor(() => "rgba(0,0,0,0)")
-      .polygonStrokeColor(() => INK)
-      .polygonAltitude(0.005);
+    const paths = features.flatMap(f => f.geometry.type === 'Polygon'
+      ? f.geometry.coordinates : f.geometry.coordinates.flat());
+    outlineLayer(paths, INK, 0.12);
   });
 
 // Tiny inline topojson feature decoder (avoids loading the full topojson-client lib).
@@ -129,16 +168,25 @@ function topojsonFeatures(topology, object) {
     .filter(f => f.geometry);
 }
 
+// Fit the sphere with a small margin; preserve the user's zoom after interaction.
+let hasInteracted = false;
+function fittedAltitude() {
+  const radius = Math.min(el.clientWidth, el.clientHeight) * 0.47;
+  const focalLength = el.clientHeight / (2 * Math.tan(globe.camera().fov * Math.PI / 360));
+  return Math.sqrt(1 + (focalLength / radius) ** 2) - 1;
+}
 // Sizing
 function resize() {
   globe.width(el.clientWidth);
   globe.height(el.clientHeight);
+  if (!hasInteracted) globe.pointOfView({ altitude: fittedAltitude() }, 0);
 }
 resize();
 window.addEventListener("resize", resize);
+if ("ResizeObserver" in window) new ResizeObserver(resize).observe(el);
 
 // Initial camera
-globe.pointOfView({ lat: 30, lng: -40, altitude: 2.4 }, 0);
+globe.pointOfView({ lat: 30, lng: -40, altitude: fittedAltitude() }, 0);
 
 // Controls — gentle auto-rotate until the user interacts
 const controls = globe.controls();
@@ -150,10 +198,22 @@ controls.enableZoom = true;
 function updateZoomSpeed({ altitude }) {
   controls.zoomSpeed = (altitude + 1) * 0.1 * 1.6;
 }
-globe.onZoom(updateZoomSpeed);
+function updateView(pov) {
+  updateZoomSpeed(pov);
+  const camera = globe.camera().position;
+  const visible = LOCATIONS.filter(d => {
+    const p = globe.getCoords(d.lat, d.lng, 0);
+    return p.x * (camera.x - p.x) + p.y * (camera.y - p.y) + p.z * (camera.z - p.z) > 0;
+  });
+  const key = visible.map(d => d.city).join('|');
+  if (key !== visibleKey) { visibleKey = key; globe.pointsData(visible); }
+}
+let visibleKey = '';
+globe.onZoom(updateView);
+updateView(globe.pointOfView());
 updateZoomSpeed(globe.pointOfView());
 ["mousedown", "touchstart", "wheel"].forEach(evt =>
-  el.addEventListener(evt, () => { controls.autoRotate = false; }, { passive: true, once: true })
+  el.addEventListener(evt, () => { controls.autoRotate = false; hasInteracted = true; }, { passive: true, once: true })
 );
 
 // Pause the render loop when the page/tab isn't visible or scrolled out of view.
@@ -176,8 +236,9 @@ if ("IntersectionObserver" in window) {
 }
 
 function flyTo(d) {
+  hasInteracted = true;
   controls.autoRotate = false;
-  globe.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.6 }, 1200);
+  globe.pointOfView({ lat: d.lat, lng: d.lng, altitude: Math.min(1.6, fittedAltitude()) }, 1200);
   document.querySelectorAll("#locations li").forEach(li => {
     li.classList.toggle("active", li.dataset.city === d.city);
   });
