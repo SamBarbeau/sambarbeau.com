@@ -59,6 +59,27 @@ const LINE   = "#a8a29e";
 
 const el = document.getElementById("globe");
 
+const markerElements = new Map();
+let selectedCity = null;
+let hoveredCity = null;
+
+function updateMarkerLabel() {
+  const active = hoveredCity || selectedCity;
+  for (const [city, {label, button}] of markerElements) {
+    label.hidden = city !== active;
+    button.setAttribute('aria-pressed', String(city === selectedCity));
+    if (city === active) {
+      // Keep the label inside the globe on narrow screens and near the rim.
+      label.style.left = '0px';
+      const bounds = label.getBoundingClientRect();
+      const frame = el.getBoundingClientRect();
+      const shift = Math.max(frame.left + 6 - bounds.left, 0)
+        - Math.max(bounds.right - frame.right + 6, 0);
+      label.style.left = `${shift}px`;
+    }
+  }
+}
+
 const globe = Globe()(el)
   .backgroundColor("rgba(0,0,0,0)")
   .showGlobe(false)            // no filled sphere — minimalist
@@ -72,15 +93,21 @@ const globe = Globe()(el)
     anchor.className = 'travel-marker';
     const button = document.createElement('button');
     button.type = 'button';
-    button.title = `${d.city}, ${d.country}`;
+    const label = document.createElement('span');
+    label.className = 'travel-marker-label';
+    label.textContent = `${d.city}, ${d.country}`;
+    label.hidden = true;
     button.setAttribute('aria-label', `Fly to ${d.city}, ${d.country}`);
     // The tip is anchored to the city; the 7 × 11 px body stays screen-sized.
     button.innerHTML = `<svg width="9" height="13" viewBox="-4.5 -12 9 13" aria-hidden="true"><path d="M0 0 C-1.05 -2.75 -3.5 -5.28 -3.5 -7.37 C-3.5 -12.21 3.5 -12.21 3.5 -7.37 C3.5 -5.28 1.05 -2.75 0 0 Z" fill="${ACCENT}" stroke="${BG}" stroke-width="2" stroke-linejoin="round" paint-order="stroke"/></svg>`;
     button.addEventListener('click', event => { event.stopPropagation(); flyTo(d); });
     button.addEventListener('pointerdown', () => { controls.autoRotate = false; hasInteracted = true; });
-    button.addEventListener('pointerenter', () => { controls.autoRotate = false; });
-    button.addEventListener('focus', () => { controls.autoRotate = false; });
-    anchor.append(button);
+    button.addEventListener('pointerenter', () => { controls.autoRotate = false; hoveredCity = d.city; updateMarkerLabel(); });
+    button.addEventListener('pointerleave', () => { hoveredCity = null; updateMarkerLabel(); });
+    button.addEventListener('focus', () => { controls.autoRotate = false; hoveredCity = d.city; updateMarkerLabel(); });
+    button.addEventListener('blur', () => { hoveredCity = null; updateMarkerLabel(); });
+    anchor.append(button, label);
+    markerElements.set(d.city, {label, button});
     return anchor;
   });
 
@@ -208,7 +235,7 @@ controls.enableZoom = true;
 function updateZoomSpeed({ altitude }) {
   controls.zoomSpeed = (altitude + 1) * 0.1 * 1.6;
 }
-globe.onZoom(updateZoomSpeed);
+globe.onZoom(pov => { updateZoomSpeed(pov); updateMarkerLabel(); });
 updateZoomSpeed(globe.pointOfView());
 ["mousedown", "touchstart", "wheel"].forEach(evt =>
   el.addEventListener(evt, () => { controls.autoRotate = false; hasInteracted = true; }, { passive: true, once: true })
@@ -234,6 +261,9 @@ if ("IntersectionObserver" in window) {
 }
 
 function flyTo(d) {
+  selectedCity = d.city;
+  hoveredCity = null;
+  updateMarkerLabel();
   hasInteracted = true;
   controls.autoRotate = false;
   globe.pointOfView({ lat: d.lat, lng: d.lng, altitude: Math.min(1.6, fittedAltitude()) }, 1200);
@@ -250,4 +280,13 @@ LOCATIONS.forEach(d => {
   li.innerHTML = `${d.city}<span class="country">· ${d.country}</span>`;
   li.addEventListener("click", () => flyTo(d));
   list.appendChild(li);
+});
+
+// Dismiss the pinned label without moving the globe.
+el.addEventListener('keydown', event => {
+  if (event.key === 'Escape') {
+    selectedCity = null;
+    hoveredCity = null;
+    updateMarkerLabel();
+  }
 });
