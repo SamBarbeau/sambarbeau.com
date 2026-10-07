@@ -146,14 +146,29 @@ function outlineLayer(paths, color, rearOpacity) {
   lines.raycast = () => {};
   globe.scene().add(lines);
 }
-const graticules = [];
-for (let lat = -80; lat <= 80; lat += 10) {
-  graticules.push(Array.from({length: 361}, (_, i) => [i - 180, lat]));
+// A camera-facing tangent circle traces the sphere's silhouette at any zoom.
+const rimGeometry = new THREE.BufferGeometry().setFromPoints(
+  Array.from({length: 256}, (_, i) => {
+    const angle = i / 256 * Math.PI * 2;
+    return new THREE.Vector3(Math.cos(angle), Math.sin(angle), 0);
+  })
+);
+const globeRim = new THREE.LineLoop(rimGeometry, new THREE.LineBasicMaterial({
+  color: '#b6b7b5', transparent: true, opacity: 0.9, depthTest: false, depthWrite: false
+}));
+globeRim.raycast = () => {};
+globe.scene().add(globeRim);
+const rimNormal = new THREE.Vector3();
+const rimAxis = new THREE.Vector3(0, 0, 1);
+function updateGlobeRim() {
+  const camera = globe.camera();
+  const distance = camera.position.length();
+  const radius = globe.getGlobeRadius() * 1.005;
+  rimNormal.copy(camera.position).normalize();
+  globeRim.position.copy(rimNormal).multiplyScalar(radius * radius / distance);
+  globeRim.quaternion.setFromUnitVectors(rimAxis, rimNormal);
+  globeRim.scale.setScalar(radius * Math.sqrt(Math.max(0, 1 - (radius / distance) ** 2)));
 }
-for (let lng = -180; lng < 180; lng += 10) {
-  graticules.push(Array.from({length: 181}, (_, i) => [lng, i - 90]));
-}
-outlineLayer(graticules, LINE, 0.08);
 fetch("https://unpkg.com/world-atlas@2.0.2/countries-110m.json")
   .then(r => r.json())
   .then(topo => {
@@ -235,8 +250,9 @@ controls.enableZoom = true;
 function updateZoomSpeed({ altitude }) {
   controls.zoomSpeed = (altitude + 1) * 0.1 * 1.6;
 }
-globe.onZoom(pov => { updateZoomSpeed(pov); updateMarkerLabel(); });
+globe.onZoom(pov => { updateZoomSpeed(pov); updateMarkerLabel(); updateGlobeRim(); });
 updateZoomSpeed(globe.pointOfView());
+updateGlobeRim();
 ["mousedown", "touchstart", "wheel"].forEach(evt =>
   el.addEventListener(evt, () => { controls.autoRotate = false; hasInteracted = true; }, { passive: true, once: true })
 );
