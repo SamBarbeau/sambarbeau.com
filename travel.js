@@ -6,7 +6,7 @@ const LOCATIONS = [
   { city: "Negril",            country: "Jamaica",      lat: 18.2781,  lng: -78.3484 },
   
   // USA (West to East Coast)
-  // to add: yellowstone,
+  { city: "Yellowstone", country: "USA", lat: 44.4280, lng: -110.5885 },
   { city: "San Diego",         country: "USA",          lat: 32.7157,  lng: -117.1611},
   { city: "Los Angeles",       country: "USA",          lat: 34.0522,  lng: -118.2437},
   { city: "Las Vegas",         country: "USA",          lat: 36.1716,  lng: -115.1391},
@@ -24,6 +24,7 @@ const LOCATIONS = [
   { city: "Washington D.C.",   country: "USA",          lat: 38.9072,  lng: -77.0369 },
   { city: "Blacksburg",        country: "USA",          lat: 37.2296,  lng: -80.4139 },
   { city: "Garden City Beach", country: "USA",          lat: 33.5902,  lng: -78.9959 },
+  { city: "Nashville", country: "USA", lat: 36.1627, lng: -86.7816 },
   { city: "Miami",             country: "USA",          lat: 25.7617,  lng: -80.1918 },
   { city: "New York",          country: "USA",          lat: 40.7128,  lng: -74.0060 },
   { city: "Foxborough",        country: "USA",          lat: 42.0654,  lng: -71.2478 },
