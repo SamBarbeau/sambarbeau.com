@@ -64,15 +64,25 @@ const globe = Globe()(el)
   .showGlobe(false)            // no filled sphere — minimalist
   .showAtmosphere(false)
   .showGraticules(false)
-  .pointsData(LOCATIONS)
-  .pointsTransitionDuration(0)
-  .pointLat("lat")
-  .pointLng("lng")
-  .pointColor(() => ACCENT)
-  .pointAltitude(0.01)
-  .pointRadius(0.45)
-  .pointLabel(d => `<div style="background:${BG};color:${INK};padding:4px 8px;border:1px solid ${LINE};border-radius:3px;font-family:Georgia,serif;font-size:13px;">${d.city}, ${d.country}</div>`)
-  .onPointClick(d => flyTo(d));
+  .htmlElementsData(LOCATIONS)
+  .htmlAltitude(0.006)
+  .htmlTransitionDuration(0)
+  .htmlElement(d => {
+    const anchor = document.createElement('div');
+    anchor.className = 'travel-marker';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.title = `${d.city}, ${d.country}`;
+    button.setAttribute('aria-label', `Fly to ${d.city}, ${d.country}`);
+    // The tip is anchored to the city; the 7 × 11 px body stays screen-sized.
+    button.innerHTML = `<svg width="9" height="13" viewBox="-4.5 -12 9 13" aria-hidden="true"><path d="M0 0 C-1.05 -2.75 -3.5 -5.28 -3.5 -7.37 C-3.5 -12.21 3.5 -12.21 3.5 -7.37 C3.5 -5.28 1.05 -2.75 0 0 Z" fill="${ACCENT}" stroke="${BG}" stroke-width="2" stroke-linejoin="round" paint-order="stroke"/></svg>`;
+    button.addEventListener('click', event => { event.stopPropagation(); flyTo(d); });
+    button.addEventListener('pointerdown', () => { controls.autoRotate = false; hasInteracted = true; });
+    button.addEventListener('pointerenter', () => { controls.autoRotate = false; });
+    button.addEventListener('focus', () => { controls.autoRotate = false; });
+    anchor.append(button);
+    return anchor;
+  });
 
 // Each outline fades continuously across the horizon as the camera moves.
 // Geography is uploaded once; the GPU handles front/rear contrast during rotation.
@@ -198,19 +208,7 @@ controls.enableZoom = true;
 function updateZoomSpeed({ altitude }) {
   controls.zoomSpeed = (altitude + 1) * 0.1 * 1.6;
 }
-function updateView(pov) {
-  updateZoomSpeed(pov);
-  const camera = globe.camera().position;
-  const visible = LOCATIONS.filter(d => {
-    const p = globe.getCoords(d.lat, d.lng, 0);
-    return p.x * (camera.x - p.x) + p.y * (camera.y - p.y) + p.z * (camera.z - p.z) > 0;
-  });
-  const key = visible.map(d => d.city).join('|');
-  if (key !== visibleKey) { visibleKey = key; globe.pointsData(visible); }
-}
-let visibleKey = '';
-globe.onZoom(updateView);
-updateView(globe.pointOfView());
+globe.onZoom(updateZoomSpeed);
 updateZoomSpeed(globe.pointOfView());
 ["mousedown", "touchstart", "wheel"].forEach(evt =>
   el.addEventListener(evt, () => { controls.autoRotate = false; hasInteracted = true; }, { passive: true, once: true })
