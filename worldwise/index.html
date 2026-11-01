@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#e7e5e4" />
+    <title>Worldwise · Sam Barbeau</title>
+    <meta name="description" content="Two countries. One question. A little perspective. A geography guessing game with real World Bank data." />
+    <link rel="icon" href="/img/favicon-32.png" />
+    <link rel="stylesheet" href="style.css" />
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="site">
+        <a href="/" aria-label="Sam Barbeau — home"><img src="/img/page_logo.png" width="32" height="32" alt="" /></a>
+        <nav aria-label="Site"><a href="/">about</a><a href="/projects.html" aria-current="page">projects</a><a href="/travel.html">travel</a></nav>
+      </header>
+      <main id="app" aria-busy="true">
+        <h1>worldwise</h1>
+        <p class="lede">two countries. one question. a little perspective.</p>
+        <p class="loading" role="status">Opening the atlas…</p>
+      </main>
+      <noscript><p>This game needs JavaScript to compare countries and draw the results.</p></noscript>
+      <footer>
+        <a href="/projects.html">← all projects</a>
+        <button id="about" class="text-button" type="button">about the data</button>
+      </footer>
+    </div>
+    <dialog id="about-dialog" aria-labelledby="about-title">
+      <div class="dialog-heading"><h2 id="about-title">A game of perspective.</h2><button class="close-button" aria-label="Close" data-close>×</button></div>
+      <p>Country matchups are generated from real statistics. Both countries use the same measure and year, with a meaningful gap between them.</p>
+      <p id="data-summary"></p>
+      <p>Each question shows the data year. “What counts?” explains the measure. Figures are rounded for readability.</p>
+      <p id="data-sources">Data: <a href="https://data.worldbank.org/" target="_blank" rel="noopener">World Bank, World Development Indicators ↗</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>).</p>
+      <p>Silhouettes: <a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener">Natural Earth ↗</a>, public domain. Some show the mainland or main islands for readability. Shapes are not drawn to a shared scale.</p>
+      <p class="small">Your best score stays in this browser. No account required.</p>
+      <button class="primary" data-close>Got it</button>
+    </dialog>
+    <div class="sr-only" id="announcer" role="status" aria-live="polite" aria-atomic="true"></div>
+  </body>
+</html>
