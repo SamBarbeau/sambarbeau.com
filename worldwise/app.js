@@ -1,8 +1,8 @@
-import { chartAxis } from './chart.js?rev=2';
-import { ROUND_COUNT, formatValue, unitLabel, describeGap, scoreAnswers } from './engine.js?rev=2';
-import { todayUTC, parseRoute, gameRoute } from './routes.js?rev=2';
-import { createDailyHistory, dailyRecord, restoreDaily, createSessionHistory, DAILY_HISTORY_KEY } from './history.js?rev=2';
-import { CURRENT_EDITION, findEdition } from './editions.js?rev=2';
+import { chartAxis } from './chart.js?rev=3';
+import { ROUND_COUNT, formatValue, unitLabel, describeGap, scoreAnswers } from './engine.js?rev=3';
+import { todayUTC, parseRoute, gameRoute } from './routes.js?rev=3';
+import { createDailyHistory, dailyRecord, restoreDaily, createSessionHistory, DAILY_HISTORY_KEY } from './history.js?rev=3';
+import { CURRENT_EDITION, findEdition } from './editions.js?rev=3';
 
 const app = document.querySelector('#app');
 const announcer = document.querySelector('#announcer');
@@ -149,7 +149,7 @@ function renderHome(message = '') {
     <div class="setup"><div class="daily"><button data-action="daily">The daily ten ↗</button><span class="small">${completed ? `${dailyScore} / 10 · view your results` : 'same game for everyone'}</span></div></div>
     <div class="topics"><div>${topicIcon('compass')}<h3>Trust your instinct.</h3><p>People, nature, and everyday life. Choose one of two countries.</p></div><div>${topicIcon('chart')}<h3>See the bigger picture.</h3><p>Every answer opens a chart. Find your two countries among all the others.</p></div><div>${topicIcon('book')}<h3>Leave a little wiser.</h3><p>Real figures, fair comparisons, and probably a few things you didn’t expect.</p></div></div>
     <p id="home-best" class="small" ${best ? '' : 'hidden'}>Your best: ${best / 100} / 10.</p>`;
-  app.querySelector('[data-action="play"]').addEventListener('click', () => navigate(gameRoute(randomSeed(), false, CURRENT_EDITION.id)));
+  app.querySelector('[data-action="play"]').addEventListener('click', () => navigate(gameRoute(randomSeed())));
   app.querySelector('[data-action="daily"]').addEventListener('click', () => navigate(gameRoute(`daily-${todayUTC()}`, true)));
 }
 
@@ -158,7 +158,7 @@ function startGame(seed, daily) {
   if (completed) { state = restoreDaily(completed); renderResults(); return; }
   const edition = `${activeEdition.id}:${sourceDate()}`;
   const checkpoint = sessions.get(seed, daily, edition);
-  state = {screen: 'game', seed, daily, version: activeEdition.id, edition, index: checkpoint?.index || 0, answers: []};
+  state = {screen: 'game', seed, daily, edition, index: checkpoint?.index || 0, answers: []};
   state.questions = activeEdition.generateGame(data, `${sourceDate()}:${seed}`);
   if (checkpoint) {
     state.answers = checkpoint.choices.map((choice, i) => ({choice, correct: choice === state.questions[i].winner}));
@@ -306,7 +306,7 @@ function renderResults() {
     <div class="result-metrics"><div><strong>${score.points}</strong><span>points</span></div><div><strong>${score.bestStreak}</strong><span>best streak</span></div><div><strong>${best / 100} / 10</strong><span>personal best</span></div></div>
     <h2 class="review-title">A look back.</h2><p class="small">Open a matchup to revisit the figures.</p>${state.questions.map((q, i) => reviewItem(q, state.answers[i], i)).join('')}`;
   wireHome();
-  app.querySelector('[data-action="again"]').addEventListener('click', () => navigate(gameRoute(randomSeed(), false, CURRENT_EDITION.id)));
+  app.querySelector('[data-action="again"]').addEventListener('click', () => navigate(gameRoute(randomSeed())));
   app.querySelector('[data-action="share"]').addEventListener('click', copyChallenge);
   document.querySelector('#results-title').focus({preventScroll: true});
   window.scrollTo({top: 0, behavior: 'instant'});
@@ -316,7 +316,7 @@ function renderResults() {
 async function copyChallenge() {
   const score = scoreAnswers(state.answers);
   const url = new URL(location.href);
-  url.search = gameRoute(state.seed, state.daily, state.version || activeEdition.id);
+  url.search = gameRoute(state.seed, state.daily);
   url.hash = '';
   const text = `worldwise · ${score.correct}/10\n${state.answers.map(a => a.correct ? '🟦' : '⬜').join('')}\n${state.daily ? 'The daily ten. Your turn.' : 'Same ten. Your turn.'}\n${url.href}`;
   const status = document.querySelector('#copy-status');

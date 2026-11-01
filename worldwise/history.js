@@ -1,5 +1,5 @@
-import { ROUND_COUNT, GAME_VERSION } from './engine.js?rev=2';
-import { todayUTC, validDailyDate } from './routes.js?rev=2';
+import { ROUND_COUNT, GAME_VERSION } from './engine.js?rev=3';
+import { todayUTC, validDailyDate } from './routes.js?rev=3';
 
 export const DAILY_HISTORY_KEY = 'worldwise-daily-history-v1';
 export const HISTORY_DAYS = 30;

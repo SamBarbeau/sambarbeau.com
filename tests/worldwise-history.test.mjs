@@ -34,9 +34,11 @@ test('daily and random routes are distinct, canonical, and preserve old seeds', 
     assert.equal(r.search, '?date=2026-11-01');
   }
   assert.deepEqual(parseRoute('?seed=1z141z3'), {kind: 'challenge', seed: '1z141z3', version: '1', search: '?seed=1z141z3'});
-  assert.equal(parseRoute('?seed=ab12cd34').search, '?challenge=ab12cd34&v=1');
+  assert.equal(parseRoute('?seed=ab12cd34').search, '?challenge=ab12cd34');
+  assert.deepEqual(parseRoute('?challenge=ab12cd34&v=1'), parseRoute('?challenge=ab12cd34'));
+  assert.deepEqual(parseRoute('?date=2026-11-01&v=1', '2026-11-01'), parseRoute('?date=2026-11-01', '2026-11-01'));
   assert.equal(parseRoute('?challenge=ab12cd34').seed, 'ab12cd34');
-  assert.equal(gameRoute('ab12cd34'), '?challenge=ab12cd34&v=1');
+  assert.equal(gameRoute('ab12cd34'), '?challenge=ab12cd34');
   assert.equal(parseRoute('').kind, 'home');
   for (const query of ['?date=2026-11-02', '?date=2026-10-31', '?date=2026-11-31', '?seed=daily-nope',
     '?challenge=daily-2026-11-01', '?date=2026-11-01&challenge=abc', '?date=2026-11-01&date=2026-11-01',
