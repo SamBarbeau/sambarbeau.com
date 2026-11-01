@@ -1,8 +1,8 @@
-import { chartAxis } from './chart.js';
-import { ROUND_COUNT, formatValue, unitLabel, describeGap, scoreAnswers } from './engine.js';
-import { todayUTC, parseRoute, gameRoute } from './routes.js';
-import { createDailyHistory, dailyRecord, restoreDaily, createSessionHistory, DAILY_HISTORY_KEY } from './history.js';
-import { CURRENT_EDITION, findEdition } from './editions.js';
+import { chartAxis } from './chart.js?rev=2';
+import { ROUND_COUNT, formatValue, unitLabel, describeGap, scoreAnswers } from './engine.js?rev=2';
+import { todayUTC, parseRoute, gameRoute } from './routes.js?rev=2';
+import { createDailyHistory, dailyRecord, restoreDaily, createSessionHistory, DAILY_HISTORY_KEY } from './history.js?rev=2';
+import { CURRENT_EDITION, findEdition } from './editions.js?rev=2';
 
 const app = document.querySelector('#app');
 const announcer = document.querySelector('#announcer');

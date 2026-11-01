@@ -1,4 +1,4 @@
-import {dailyEdition, findEdition} from './editions.js';
+import {dailyEdition, findEdition} from './editions.js?rev=2';
 
 export const LAUNCH_DATE = '2026-11-01';
 export const todayUTC = (now = new Date()) => now.toISOString().slice(0, 10);

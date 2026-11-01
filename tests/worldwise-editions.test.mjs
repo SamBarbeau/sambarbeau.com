@@ -35,3 +35,16 @@ test('future editions only affect daily dates at or after their activation date'
   assert.equal(parseRoute('?challenge=ab12cd34').version, '1');
   assert.equal(parseRoute('?challenge=ab12cd34&v=1').version, '1');
 });
+
+test('browser entry and mutable modules use the same cache revision', async () => {
+  const html = await readFile(new URL('../worldwise/index.html', import.meta.url), 'utf8');
+  const revision = html.match(/src="app\.js\?rev=(\d+)"/)?.[1];
+  assert.ok(revision);
+  for (const file of ['app.js', 'history.js', 'routes.js', 'editions.js']) {
+    const source = await readFile(new URL(`../worldwise/${file}`, import.meta.url), 'utf8');
+    for (const [, path] of source.matchAll(/from\s+['"](\.\/[^'"]+)['"]/g)) {
+      if (path.startsWith('./editions/')) continue; // Frozen files are already versioned by path.
+      assert.ok(path.endsWith(`?rev=${revision}`), `${file}: ${path} could reuse a stale module`);
+    }
+  }
+});

@@ -64,6 +64,8 @@ Unfinished games and random results use small seed/choice checkpoints for at mos
 
 For a future data or generation-rule change: refresh/build the candidate snapshot, create a **new** immutable data/generator pair, append its unique ID to the ordered registry, and set `dailyFrom` to a **future UTC date at deployment time**. Never rewrite a published edition or move its activation date. This keeps already-started daily games and existing random links stable. New random games use the newest edition immediately; daily games switch on the registered future date.
 
+Cloudflare currently gives JavaScript a four-hour browser cache lifetime. On app-code releases, increment the `?rev=` tag in `worldwise/index.html` and all mutable module imports together; this prevents old and new scripts mixing for returning visitors. Frozen edition files have immutable paths and do not need revision queries. A regression test checks the mutable module graph for consistent tags.
+
 ### Data and size
 
 `worldwise/data/world.json` is the compact candidate snapshot; the published runtime copy lives in `worldwise/editions/v1.json`: 100 topics, 10,903 observations, 117 countries. It is about 257 KB raw, 91 KB gzip, or 66 KB Brotli in local compression tests. The maps add about 212 KB raw / 78 KB gzip / 61 KB Brotli. Production transfer size depends on negotiated compression; the local development server deliberately sends uncompressed, uncached responses. No database, per-question network requests, account, runtime package install, or app build is needed. Cloudflare Pages handles static-asset compression and conditional browser caching by default.
