@@ -1,5 +1,8 @@
 import { chartAxis } from './chart.js';
-import { ROUND_COUNT, generateGame, formatValue, unitLabel, describeGap, scoreAnswers } from './engine.js';
+import { ROUND_COUNT, formatValue, unitLabel, describeGap, scoreAnswers } from './engine.js';
+import { todayUTC, parseRoute, gameRoute } from './routes.js';
+import { createDailyHistory, dailyRecord, restoreDaily, createSessionHistory, DAILY_HISTORY_KEY } from './history.js';
+import { CURRENT_EDITION, findEdition } from './editions.js';
 
 const app = document.querySelector('#app');
 const announcer = document.querySelector('#announcer');
@@ -9,8 +12,11 @@ const escape = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<'
 const flag = country => String.fromCodePoint(...country.iso2.toUpperCase().split('').map(c => 127397 + c.charCodeAt(0)));
 const readStore = key => { try { return localStorage.getItem(key); } catch { return null; } };
 const writeStore = (key, value) => { try { localStorage.setItem(key, value); } catch { /* Play works without persistent storage. */ } };
-const dailyDate = () => new Date().toISOString().slice(0, 10);
-const randomSeed = () => crypto.getRandomValues(new Uint32Array(1))[0].toString(36);
+const randomSeed = () => [...crypto.getRandomValues(new Uint8Array(8))].map(n => '0123456789abcdefghijklmnopqrstuvwxyz'[n % 36]).join('');
+const dailyHistory = createDailyHistory({getItem: key => localStorage.getItem(key), setItem: (key, value) => localStorage.setItem(key, value)});
+let sessions;
+let activeEdition = CURRENT_EDITION, navigation = 0;
+const editionData = new Map();
 let data, geography = {shapes: {}, land: []};
 let state = {screen: 'home', daily: false, seed: '', questions: [], answers: [], index: 0};
 const sourceDate = () => data.edition || data.generatedAt.slice(0, 10);
@@ -22,14 +28,16 @@ dialog.addEventListener('click', event => { if (event.target === dialog) { const
 
 async function load() {
   try {
-    const responses = await Promise.all([fetch('data/world.json'), fetch('data/geography.json').catch(() => null)]);
+    const initialEdition = findEdition(parseRoute(location.search).version) || CURRENT_EDITION;
+    const responses = await Promise.all([fetch(initialEdition.dataPath), fetch('data/geography.json').catch(() => null)]);
     if (!responses[0].ok) throw new Error('Data could not be loaded');
     data = await responses[0].json();
+    editionData.set(initialEdition.id, data);
     if (responses[1]?.ok) geography = await responses[1].json();
     app.setAttribute('aria-busy', 'false');
-    document.querySelector('#data-summary').textContent = `This edition includes ${data.countries.length} countries and ${data.metrics.length} topics. Figures from public sources are saved with the game for quick, reliable play. Charts cover this selection of countries.`;
-    renderSources();
-    renderHome();
+    sessions = createSessionHistory({getItem: key => sessionStorage.getItem(key), setItem: (key, value) => sessionStorage.setItem(key, value)}, `${initialEdition.id}:${sourceDate()}`);
+    dailyHistory.all(); // Prune expired results on each visit.
+    await openRoute();
   } catch {
     app.setAttribute('aria-busy', 'false');
     app.innerHTML = '<h1>worldwise</h1><p>The atlas didn’t load. Please try again.</p><button id="retry" class="primary">Try again</button>';
@@ -38,6 +46,7 @@ async function load() {
 }
 
 function renderSources() {
+  document.querySelector('#data-summary').textContent = `This edition includes ${data.countries.length} countries and ${data.metrics.length} topics. Figures from public sources are saved with the game for quick, reliable play. Charts cover this selection of countries.`;
   const sources = new Map();
   for (const metric of data.metrics) {
     const name = metric.provider || 'World Bank';
@@ -62,7 +71,56 @@ function globeMarkup() {
 }
 
 function heading(withExit = false) {
-  return `<div class="heading"><div><h1>worldwise</h1><p class="lede">two countries. one question. a little perspective.</p></div>${withExit ? '<button class="text-button" data-action="home">start over</button>' : ''}</div>`;
+  return `<div class="heading"><div><h1>worldwise</h1><p class="lede">two countries. one question. a little perspective.</p></div>${withExit ? '<button class="text-button" data-action="home">home</button>' : ''}</div>`;
+}
+
+function rememberGame() {
+  if (sessions && ['game', 'results'].includes(state.screen) && !state.archived) sessions.save(state);
+}
+
+function navigate(search = '') {
+  rememberGame();
+  if (location.search !== search || location.hash) history.pushState(null, '', location.pathname + search);
+  openRoute();
+}
+
+async function openRoute() {
+  if (!data) return;
+  const request = ++navigation;
+  const route = parseRoute(location.search);
+  if (location.search !== route.search || location.hash) history.replaceState(null, '', location.pathname + route.search);
+  const edition = findEdition(route.version) || CURRENT_EDITION;
+  try {
+    if (!editionData.has(edition.id)) {
+      state.screen = 'loading';
+      app.innerHTML = '<h1>worldwise</h1><p class="loading" role="status">Opening the atlas…</p>';
+      const response = await fetch(edition.dataPath);
+      if (!response.ok) throw new Error('Edition could not be loaded');
+      const snapshot = await response.json();
+      if (!Array.isArray(snapshot.metrics) || !Array.isArray(snapshot.countries) || !snapshot.edition) throw new Error('Invalid edition');
+      editionData.set(edition.id, snapshot);
+    }
+    if (request !== navigation) return;
+    activeEdition = edition;
+    data = editionData.get(edition.id);
+    renderSources();
+  } catch {
+    if (request !== navigation) return;
+    state.screen = 'error';
+    app.innerHTML = `${heading(true)}<p>This game couldn’t be loaded. Please try again.</p><button class="primary" data-action="retry">Try again</button>`;
+    wireHome(); app.querySelector('[data-action="retry"]').addEventListener('click', openRoute);
+    return;
+  }
+  if (route.kind === 'home' || route.kind === 'invalid') {
+    renderHome(route.message);
+    window.scrollTo({top: 0, behavior: 'instant'});
+    return;
+  }
+  startGame(route.seed, route.kind === 'daily');
+}
+
+function wireHome() {
+  app.querySelector('[data-action="home"]')?.addEventListener('click', () => navigate());
 }
 
 function topicIcon(kind) {
@@ -74,28 +132,39 @@ function topicIcon(kind) {
   return `<svg class="topic-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">${shapes[kind]}</svg>`;
 }
 
-function renderHome() {
+function renderHome(message = '') {
   state.screen = 'home';
-  const params = new URLSearchParams(location.search);
-  const challenge = params.get('seed')?.match(/^[a-z0-9-]{1,50}$/i)?.[0];
+  announcer.textContent = '';
   const best = Number(readStore(bestKey())) || 0;
+  const completed = dailyHistory.get(todayUTC());
+  const dailyScore = completed ? scoreAnswers(restoreDaily(completed).answers).correct : null;
   app.innerHTML = `${heading()}
+    ${message ? `<p class="small" role="status">${escape(message)}</p>` : ''}
     <section class="intro" aria-labelledby="intro-title"><div>
       <span class="eyebrow">a small game about a big world</span>
       <h2 id="intro-title">How well do you<br>know the world?</h2>
-      <button class="primary" data-action="play">${challenge ? 'Play this challenge' : 'Let’s find out'} <span class="arrow" aria-hidden="true">→</span></button>
+      <button class="primary" data-action="play">Let’s find out <span class="arrow" aria-hidden="true">→</span></button>
       <p class="small">10 questions · no timer · a fresh mix every time</p>
     </div><div class="intro-art">${globeMarkup()}<div class="globe-label">${data.countries.length} countries. plenty of surprises.</div></div></section>
-    <div class="setup"><div class="daily"><button data-action="daily">The daily ten ↗</button><span class="small">same game for everyone</span></div></div>
+    <div class="setup"><div class="daily"><button data-action="daily">The daily ten ↗</button><span class="small">${completed ? `${dailyScore} / 10 · view your results` : 'same game for everyone'}</span></div></div>
     <div class="topics"><div>${topicIcon('compass')}<h3>Trust your instinct.</h3><p>People, nature, and everyday life. Choose one of two countries.</p></div><div>${topicIcon('chart')}<h3>See the bigger picture.</h3><p>Every answer opens a chart. Find your two countries among all the others.</p></div><div>${topicIcon('book')}<h3>Leave a little wiser.</h3><p>Real figures, fair comparisons, and probably a few things you didn’t expect.</p></div></div>
     <p id="home-best" class="small" ${best ? '' : 'hidden'}>Your best: ${best / 100} / 10.</p>`;
-  app.querySelector('[data-action="play"]').addEventListener('click', () => startGame(challenge || randomSeed(), Boolean(challenge?.startsWith('daily-'))));
-  app.querySelector('[data-action="daily"]').addEventListener('click', () => startGame(`daily-${dailyDate()}`, true));
+  app.querySelector('[data-action="play"]').addEventListener('click', () => navigate(gameRoute(randomSeed(), false, CURRENT_EDITION.id)));
+  app.querySelector('[data-action="daily"]').addEventListener('click', () => navigate(gameRoute(`daily-${todayUTC()}`, true)));
 }
 
 function startGame(seed, daily) {
-  state = {...state, screen: 'game', seed, daily, index: 0, answers: []};
-  state.questions = generateGame(data, `${sourceDate()}:${seed}`);
+  const completed = daily && dailyHistory.get(seed.slice(6));
+  if (completed) { state = restoreDaily(completed); renderResults(); return; }
+  const edition = `${activeEdition.id}:${sourceDate()}`;
+  const checkpoint = sessions.get(seed, daily, edition);
+  state = {screen: 'game', seed, daily, version: activeEdition.id, edition, index: checkpoint?.index || 0, answers: []};
+  state.questions = activeEdition.generateGame(data, `${sourceDate()}:${seed}`);
+  if (checkpoint) {
+    state.answers = checkpoint.choices.map((choice, i) => ({choice, correct: choice === state.questions[i].winner}));
+    if (checkpoint.screen === 'results' || (daily && state.answers.length === ROUND_COUNT)) { renderResults(); return; }
+  }
+  rememberGame();
   renderQuestion(true);
 }
 
@@ -123,7 +192,7 @@ function renderQuestion(focus = false) {
     <section class="question"><div class="eyebrow">${String(state.index + 1).padStart(2, '0')} / ${ROUND_COUNT} &nbsp; · &nbsp; ${escape(m.label)}</div><h2 id="question-title" tabindex="-1">${escape(m.question)}</h2><p class="small">${escape(m.timeLabel || `${m.year} data`)}</p><details class="definition"><summary>What counts?</summary><p>${escape(m.definition)}</p></details></section>
     <div class="matchup">${q.countries.map((c, i) => countryCard(q, c, i, answer)).join('')}<span class="versus" aria-hidden="true">or</span></div>
     ${answer ? renderReveal(q, answer) : ''}`;
-  app.querySelector('[data-action="home"]').addEventListener('click', () => { renderHome(); window.scrollTo({top: 0}); });
+  wireHome();
   app.querySelectorAll('[data-choice]').forEach(button => button.addEventListener('click', () => choose(Number(button.dataset.choice))));
   if (answer) {
     app.querySelector('[data-action="next"]').addEventListener('click', nextQuestion);
@@ -137,9 +206,13 @@ function renderQuestion(focus = false) {
 
 function choose(choice) {
   if (state.screen !== 'game' || state.answers[state.index] || ![0, 1].includes(choice)) return;
+  const completed = state.daily && dailyHistory.get(state.seed.slice(6));
+  if (completed) { state = restoreDaily(completed); renderResults(); return; }
   const question = state.questions[state.index];
   const correct = choice === question.winner;
   state.answers.push({choice, correct});
+  if (state.daily && state.answers.length === ROUND_COUNT) state.dailySaved = dailyHistory.save(dailyRecord(state)).saved;
+  rememberGame();
   renderQuestion();
   announcer.textContent = `${correct ? 'Correct. One hundred points.' : 'Not quite.'} ${question.countries[question.winner].name} has the higher value. ${describeGap(question)}`;
   app.querySelector('[data-action="next"]').focus({preventScroll: true});
@@ -150,7 +223,7 @@ function choose(choice) {
 function nextQuestion() {
   if (!state.answers[state.index]) return;
   if (state.index === ROUND_COUNT - 1) renderResults();
-  else { state.index++; renderQuestion(true); }
+  else { state.index++; rememberGame(); renderQuestion(true); }
 }
 
 function renderReveal(q, answer) {
@@ -216,21 +289,24 @@ function wireChart(root) {
 function reviewItem(q, answer, index) {
   const values = q.countries.map(c => q.metric.values[c.id]);
   const low = Math.min(0, ...values), high = Math.max(0, ...values), span = high - low || 1;
-  return `<details class="review-item"><summary><span class="review-status ${answer.correct ? '' : 'wrong'}" aria-label="${answer.correct ? 'Correct' : 'Incorrect'}">${answer.correct ? '✓' : '×'}</span><span>${q.countries.map(c => escape(c.name)).join(' & ')}<span class="review-topic">${index + 1}. ${escape(q.metric.label)} · ${q.metric.year}</span></span><span class="review-chevron" aria-hidden="true">+</span></summary><div class="review-body"><p>${escape(q.metric.question)}<br>You picked ${escape(q.countries[answer.choice].name)}.</p>${q.countries.map((c, i) => `<div class="mini-bar ${i === q.winner ? 'winner' : ''}"><span>${escape(c.name)}</span><div class="mini-bar-track ${low < 0 ? 'signed' : ''}" style="--zero:${-low / span * 100}%"><i style="margin-left:${(Math.min(0, values[i]) - low) / span * 100}%;width:${Math.abs(values[i]) / span * 100}%"></i></div><strong>${formatValue(q.metric, q.metric.values[c.id])}</strong></div>`).join('')}<p>${escape(describeGap(q))} <a href="${q.metric.sourceUrl}" target="_blank" rel="noopener">Source ↗</a></p><p>${escape(q.metric.definition)}</p></div></details>`;
+  return `<details class="review-item"><summary><span class="review-status ${answer.correct ? '' : 'wrong'}" aria-label="${answer.correct ? 'Correct' : 'Incorrect'}">${answer.correct ? '✓' : '×'}</span><span>${q.countries.map(c => escape(c.name)).join(' & ')}<span class="review-topic">${index + 1}. ${escape(q.metric.label)} · ${q.metric.year}</span></span><span class="review-chevron" aria-hidden="true">+</span></summary><div class="review-body"><p>${escape(q.metric.question)}<br>You picked ${escape(q.countries[answer.choice].name)}.</p>${q.countries.map((c, i) => `<div class="mini-bar ${i === q.winner ? 'winner' : ''}"><span>${escape(c.name)}</span><div class="mini-bar-track ${low < 0 ? 'signed' : ''}" style="--zero:${-low / span * 100}%"><i style="margin-left:${(Math.min(0, values[i]) - low) / span * 100}%;width:${Math.abs(values[i]) / span * 100}%"></i></div><strong>${formatValue(q.metric, q.metric.values[c.id])}</strong></div>`).join('')}<p>${escape(describeGap(q))} <a href="${escape(q.metric.sourceUrl)}" target="_blank" rel="noopener">Source ↗</a></p><p>${escape(q.metric.definition)}</p></div></details>`;
 }
 
 function renderResults() {
   state.screen = 'results';
+  if (state.daily && !state.archived && state.dailySaved === undefined) state.dailySaved = dailyHistory.save(dailyRecord(state)).saved;
+  rememberGame();
   const score = scoreAnswers(state.answers);
   const priorBest = Number(readStore(bestKey())) || 0, best = Math.max(priorBest, score.points);
   writeStore(bestKey(), String(best));
   const titles = ['A bigger world than you thought.', 'A few new bearings.', 'Your instincts travel well.', 'You know your way around.', 'Quite the world view.'];
   const title = titles[score.correct === 10 ? 4 : score.correct >= 8 ? 3 : score.correct >= 6 ? 2 : score.correct >= 4 ? 1 : 0];
   const messages = score.correct === 10 ? 'Ten for ten. The atlas owes you an apology for doubting you.' : score.correct >= 7 ? 'A good eye for the world. Revisit the surprises below, or see where another ten take you.' : 'The world is good at surprising us. You’re leaving with a few more pieces of it than you came with.';
-  app.innerHTML = `${heading()}<section class="results-hero"><div class="eyebrow">${state.daily ? `the daily ten · ${state.seed.slice(6)}` : 'ten questions. a little more perspective.'}</div><div class="results-number">${score.correct}<span> / 10</span></div><div class="results-dots" aria-hidden="true">${state.answers.map(a => `<span class="${a.correct ? 'right' : ''}"></span>`).join('')}</div><h2 id="results-title" tabindex="-1">${title}</h2><p>${messages}</p><div class="result-actions"><button class="primary" data-action="again">Another ten →</button><button data-action="share">Copy challenge</button></div><p id="copy-status" class="small" role="status" hidden></p><textarea id="copy-fallback" class="copy-fallback" aria-label="Challenge text to copy" readonly hidden></textarea></section>
+  app.innerHTML = `${heading(true)}<section class="results-hero"><div class="eyebrow">${state.daily ? `the daily ten · ${state.seed.slice(6)}` : 'ten questions. a little more perspective.'}</div><div class="results-number">${score.correct}<span> / 10</span></div><div class="results-dots" aria-hidden="true">${state.answers.map(a => `<span class="${a.correct ? 'right' : ''}"></span>`).join('')}</div><h2 id="results-title" tabindex="-1">${title}</h2><p>${messages}</p><div class="result-actions"><button class="primary" data-action="again">Another ten →</button><button data-action="share">Copy challenge</button></div>${state.dailySaved === false ? '<p class="small" role="status">This browser couldn’t save your daily result.</p>' : ''}<p id="copy-status" class="small" role="status" hidden></p><textarea id="copy-fallback" class="copy-fallback" aria-label="Challenge text to copy" readonly hidden></textarea></section>
     <div class="result-metrics"><div><strong>${score.points}</strong><span>points</span></div><div><strong>${score.bestStreak}</strong><span>best streak</span></div><div><strong>${best / 100} / 10</strong><span>personal best</span></div></div>
     <h2 class="review-title">A look back.</h2><p class="small">Open a matchup to revisit the figures.</p>${state.questions.map((q, i) => reviewItem(q, state.answers[i], i)).join('')}`;
-  app.querySelector('[data-action="again"]').addEventListener('click', () => startGame(randomSeed(), false));
+  wireHome();
+  app.querySelector('[data-action="again"]').addEventListener('click', () => navigate(gameRoute(randomSeed(), false, CURRENT_EDITION.id)));
   app.querySelector('[data-action="share"]').addEventListener('click', copyChallenge);
   document.querySelector('#results-title').focus({preventScroll: true});
   window.scrollTo({top: 0, behavior: 'instant'});
@@ -240,9 +316,9 @@ function renderResults() {
 async function copyChallenge() {
   const score = scoreAnswers(state.answers);
   const url = new URL(location.href);
-  url.search = '';
-  url.searchParams.set('seed', state.seed);
-  const text = `worldwise · ${score.correct}/10\n${state.answers.map(a => a.correct ? '🟦' : '⬜').join('')}\nSame ten. Your turn.\n${url.href}`;
+  url.search = gameRoute(state.seed, state.daily, state.version || activeEdition.id);
+  url.hash = '';
+  const text = `worldwise · ${score.correct}/10\n${state.answers.map(a => a.correct ? '🟦' : '⬜').join('')}\n${state.daily ? 'The daily ten. Your turn.' : 'Same ten. Your turn.'}\n${url.href}`;
   const status = document.querySelector('#copy-status');
   status.hidden = false;
   try {
@@ -260,6 +336,20 @@ document.addEventListener('keydown', event => {
   if (['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) return;
   if (!state.answers[state.index] && (event.key === '1' || event.key === '2')) { event.preventDefault(); choose(Number(event.key) - 1); }
   // Enter naturally activates the focused Next button after each reveal.
+});
+
+window.addEventListener('popstate', () => { rememberGame(); openRoute(); });
+window.addEventListener('pagehide', rememberGame);
+window.addEventListener('storage', event => {
+  if (!data || (event.key !== DAILY_HISTORY_KEY && event.key !== null)) return;
+  if (state.screen === 'home') renderHome();
+  else if (state.daily) {
+    const completed = dailyHistory.get(state.seed.slice(6));
+    if (completed) { state = restoreDaily(completed); renderResults(); }
+  }
+});
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && data && state.screen === 'home') renderHome();
 });
 
 load();

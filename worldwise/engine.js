@@ -1,5 +1,6 @@
 // Pure game rules. No network, DOM, or country-specific question bank.
 export const ROUND_COUNT = 10;
+export const GAME_VERSION = 'v4';
 // Bounds relative to each indicator's minimum meaningful difference.
 // Keep every round in the same range; variety never overrides these limits.
 export const MATCHUP_GAP_BAND = [1.25, 3];
@@ -33,7 +34,7 @@ export function valueGap(metric, a, b) {
 }
 const familiar = new Set('USA CAN MEX BRA ARG CHL COL PER GBR FRA DEU ITA ESP PRT NLD SWE NOR FIN POL GRC TUR EGY MAR ZAF NGA KEN IND CHN JPN KOR IDN THA VNM AUS NZL SAU PAK BGD RUS'.split(' '));
 export function generateGame(data, seed) {
-  const random = seededRandom(hashSeed(`${seed}:v4`));
+  const random = seededRandom(hashSeed(`${seed}:${GAME_VERSION}`));
   const order = shuffle(data.metrics, random);
   // A relatable opening, then ten distinct topics, at most three per subject.
   const first = order.findIndex(m => ['population', 'forest', 'urban', 'density', 'land', 'rainfall', 'children'].includes(m.id));

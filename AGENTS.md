@@ -15,6 +15,7 @@
 - Preserve existing routing. For a new independently hosted project, add its prefix and upstream to `PROXIES`, preserve query strings and redirect rewriting, and canonicalize the bare prefix to a trailing slash. Add a corresponding local mount in `scripts/preview.mjs`.
 - Use relative URLs for a project's own assets so it works beneath a path prefix. Root-relative links are appropriate for shared site navigation and shared site assets in this repository. Independently hosted projects should use absolute `https://sambarbeau.com/...` site navigation.
 - Keep new projects dependency-light. This repository currently has no build step. Do not add a framework, separate hosted Site, or backend when browser-local code suffices.
+- Worldwise's published data and generators in `worldwise/editions/` are immutable. Add a new registered edition for future question/data/rule changes, with a future UTC activation date for daily games; preserve launch day and existing shared links. Follow the edition workflow in `README.md`.
 
 ## Preview, checks, and publishing
 
